@@ -181,8 +181,8 @@ func addSeparateChainlinkDeployments(
 		for key, value := range dynamicValues {
 			envVals[key] = value
 		}
-		envVals["cl_config"] = toml
-		testEnvironment.AddHelm(chainlink.New(index, map[string]interface{}{"env": envVals}))
+		// envVals["cl_config"] = toml
+		testEnvironment.AddHelm(chainlink.NewVersioned(index, "0.0.11", map[string]interface{}{"env": envVals}))
 	}
 }
 
