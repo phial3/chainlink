@@ -55,16 +55,16 @@ func TestOCRBasic(t *testing.T) {
 		actions.CreateOCRJobs(t, ocrInstances, chainlinkNodes, mockServer)
 		actions.StartNewRound(t, 1, ocrInstances, chainClient)
 
-		answer, err := ocrInstances[0].GetLatestAnswer(context.Background())
+		round, err := ocrInstances[0].GetRound(context.Background(), big.NewInt(1))
 		require.NoError(t, err, "Getting latest answer from OCR contract shouldn't fail")
-		require.Equal(t, int64(5), answer.Int64(), "Expected latest answer from OCR contract to be 5 but got %d", answer.Int64())
+		require.Equal(t, int64(5), round.Answer.Int64(), "Expected latest answer from OCR contract to be 5 but got %d", round.Answer.Int64())
 
 		actions.SetAllAdapterResponsesToTheSameValue(t, 10, ocrInstances, chainlinkNodes, mockServer)
 		actions.StartNewRound(t, 2, ocrInstances, chainClient)
 
-		answer, err = ocrInstances[0].GetLatestAnswer(context.Background())
+		round, err = ocrInstances[0].GetRound(context.Background(), big.NewInt(2))
 		require.NoError(t, err, "Error getting latest OCR answer")
-		require.Equal(t, int64(10), answer.Int64(), "Expected latest answer from OCR contract to be 10 but got %d", answer.Int64())
+		require.Equal(t, int64(10), round.Answer.Int64(), "Expected latest answer from OCR contract to be 10 but got %d", round.Answer.Int64())
 	}
 	profileTest := testsetups.NewChainlinkProfileTest(testsetups.ChainlinkProfileTestInputs{
 		ProfileFunction: profileFunction,

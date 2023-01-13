@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	ocrConfigHelper "github.com/smartcontractkit/libocr/offchainreporting/confighelper"
 	ocrTypes "github.com/smartcontractkit/libocr/offchainreporting/types"
@@ -643,6 +645,9 @@ func (l *EthereumLinkToken) Transfer(to string, amount *big.Int) error {
 		Msg("Transferring LINK")
 	tx, err := l.instance.Transfer(opts, common.HexToAddress(to), amount)
 	if err != nil {
+		if strings.Contains(err.Error(), "nonce") {
+			err = errors.Wrap(err, fmt.Sprintf("using nonce %d", opts.Nonce.Uint64()))
+		}
 		return err
 	}
 	return l.client.ProcessTransaction(tx)
@@ -655,6 +660,9 @@ func (l *EthereumLinkToken) TransferAndCall(to string, amount *big.Int, data []b
 	}
 	tx, err := l.instance.TransferAndCall(opts, common.HexToAddress(to), amount, data)
 	if err != nil {
+		if strings.Contains(err.Error(), "nonce") {
+			err = errors.Wrap(err, fmt.Sprintf("using nonce %d", opts.Nonce.Uint64()))
+		}
 		return nil, err
 	}
 	log.Info().

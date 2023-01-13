@@ -90,8 +90,8 @@ ListenAddresses = ["0.0.0.0:6690"]`
 func TestMain(m *testing.M) {
 	logging.Init()
 	fmt.Printf("Running Smoke Test on %s\n", networks.SelectedNetwork.Name) // Print to get around disabled logging
-	fmt.Printf("Chainlink Image %s\n", os.Getenv("CHAINLINK_IMAGE"))        // Print to get around disabled logging
-	fmt.Printf("Chainlink Version %s\n", os.Getenv("CHAINLINK_VERSION"))    // Print to get around disabled logging
+	fmt.Printf("Chainlink Image: %s\n", os.Getenv("CHAINLINK_IMAGE"))       // Print to get around disabled logging
+	fmt.Printf("Chainlink Version: %s\n", os.Getenv("CHAINLINK_VERSION"))   // Print to get around disabled logging
 	os.Exit(m.Run())
 }
 
@@ -751,9 +751,7 @@ func setupAutomationTest(
 		require.NoError(t, err, "Error tearing down environment")
 	})
 
-	txCost, err := chainClient.EstimateCostForChainlinkOperations(1000)
-	require.NoError(t, err, "Error estimating cost for Chainlink Operations")
-	err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, txCost)
+	err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.1))
 	require.NoError(t, err, "Error funding Chainlink nodes")
 
 	linkToken, err := contractDeployer.DeployLinkTokenContract()

@@ -25,48 +25,54 @@ import (
 
 func TestOCRBasic(t *testing.T) {
 	t.Parallel()
-	testEnvironment, testNetwork := setupOCRTest(t)
 
-	chainClient, err := blockchain.NewEVMClient(testNetwork, testEnvironment)
-	require.NoError(t, err, "Connecting to blockchain nodes shouldn't fail")
-	contractDeployer, err := contracts.NewContractDeployer(chainClient)
-	require.NoError(t, err, "Deploying contracts shouldn't fail")
+	for i := 0; i < 1; i++ {
+		t.Run(fmt.Sprintf("Test %d", i), func(t *testing.T) {
+			t.Parallel()
+			testEnvironment, testNetwork := setupOCRTest(t)
 
-	chainlinkNodes, err := client.ConnectChainlinkNodes(testEnvironment)
-	require.NoError(t, err, "Connecting to chainlink nodes shouldn't fail")
-	mockServer, err := ctfClient.ConnectMockServer(testEnvironment)
-	require.NoError(t, err, "Creating mockserver clients shouldn't fail")
+			chainClient, err := blockchain.NewEVMClient(testNetwork, testEnvironment)
+			require.NoError(t, err, "Connecting to blockchain nodes shouldn't fail")
+			contractDeployer, err := contracts.NewContractDeployer(chainClient)
+			require.NoError(t, err, "Deploying contracts shouldn't fail")
 
-	t.Cleanup(func() {
-		err := actions.TeardownSuite(t, testEnvironment, utils.ProjectRoot, chainlinkNodes, nil, chainClient)
-		require.NoError(t, err, "Error tearing down environment")
-	})
-	chainClient.ParallelTransactions(true)
+			chainlinkNodes, err := client.ConnectChainlinkNodes(testEnvironment)
+			require.NoError(t, err, "Connecting to chainlink nodes shouldn't fail")
+			mockServer, err := ctfClient.ConnectMockServer(testEnvironment)
+			require.NoError(t, err, "Creating mockserver clients shouldn't fail")
 
-	linkTokenContract, err := contractDeployer.DeployLinkTokenContract()
-	require.NoError(t, err, "Deploying Link Token Contract shouldn't fail")
+			t.Cleanup(func() {
+				err := actions.TeardownSuite(t, testEnvironment, utils.ProjectRoot, chainlinkNodes, nil, chainClient)
+				require.NoError(t, err, "Error tearing down environment")
+			})
+			chainClient.ParallelTransactions(true)
 
-	err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.05))
-	require.NoError(t, err, "Error funding Chainlink nodes")
+			linkTokenContract, err := contractDeployer.DeployLinkTokenContract()
+			require.NoError(t, err, "Deploying Link Token Contract shouldn't fail")
 
-	ocrInstances := actions.DeployOCRContracts(t, 1, linkTokenContract, contractDeployer, chainlinkNodes, chainClient)
-	err = chainClient.WaitForEvents()
-	require.NoError(t, err, "Error waiting for events")
+			err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.05))
+			require.NoError(t, err, "Error funding Chainlink nodes")
 
-	actions.SetAllAdapterResponsesToTheSameValue(t, 5, ocrInstances, chainlinkNodes, mockServer)
-	actions.CreateOCRJobs(t, ocrInstances, chainlinkNodes, mockServer)
-	actions.StartNewRound(t, 1, ocrInstances, chainClient)
+			ocrInstances := actions.DeployOCRContracts(t, 1, linkTokenContract, contractDeployer, chainlinkNodes, chainClient)
+			err = chainClient.WaitForEvents()
+			require.NoError(t, err, "Error waiting for events")
 
-	answer, err := ocrInstances[0].GetLatestAnswer(context.Background())
-	require.NoError(t, err, "Getting latest answer from OCR contract shouldn't fail")
-	require.Equal(t, int64(5), answer.Int64(), "Expected latest answer from OCR contract to be 5 but got %d", answer.Int64())
+			actions.SetAllAdapterResponsesToTheSameValue(t, 5, ocrInstances, chainlinkNodes, mockServer)
+			actions.CreateOCRJobs(t, ocrInstances, chainlinkNodes, mockServer)
+			actions.StartNewRound(t, 1, ocrInstances, chainClient)
 
-	actions.SetAllAdapterResponsesToTheSameValue(t, 10, ocrInstances, chainlinkNodes, mockServer)
-	actions.StartNewRound(t, 2, ocrInstances, chainClient)
+			round, err := ocrInstances[0].GetRound(context.Background(), big.NewInt(1))
+			require.NoError(t, err, "Getting latest answer from OCR contract shouldn't fail")
+			require.Equal(t, int64(5), round.Answer.Int64(), "Expected latest answer from OCR contract to be 5 but got %d", round.Answer.Int64())
 
-	answer, err = ocrInstances[0].GetLatestAnswer(context.Background())
-	require.NoError(t, err, "Error getting latest OCR answer")
-	require.Equal(t, int64(10), answer.Int64(), "Expected latest answer from OCR contract to be 10 but got %d", answer.Int64())
+			actions.SetAllAdapterResponsesToTheSameValue(t, 10, ocrInstances, chainlinkNodes, mockServer)
+			actions.StartNewRound(t, 2, ocrInstances, chainClient)
+
+			round, err = ocrInstances[0].GetRound(context.Background(), big.NewInt(2))
+			require.NoError(t, err, "Error getting latest OCR answer")
+			require.Equal(t, int64(10), round.Answer.Int64(), "Expected latest answer from OCR contract to be 10 but got %d", round.Answer.Int64())
+		})
+	}
 }
 
 func setupOCRTest(t *testing.T) (testEnvironment *environment.Environment, testNetwork blockchain.EVMNetwork) {

@@ -44,7 +44,7 @@ func TestOCRSoak(t *testing.T) {
 	require.NoError(t, err, "Error connecting to network")
 	ocrSoakTest := testsetups.NewOCRSoakTest(&testsetups.OCRSoakTestInputs{
 		BlockchainClient:     chainClient,
-		TestDuration:         time.Minute * 15,
+		TestDuration:         time.Hour * 4,
 		NumberOfContracts:    2,
 		ChainlinkNodeFunding: big.NewFloat(.1),
 		ExpectedRoundTime:    time.Minute * 2,
