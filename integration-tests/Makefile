@@ -73,9 +73,14 @@ test_smoke_simulated: install_gotestfmt ## Run all smoke tests on simulated bloc
 	SELECTED_NETWORKS="SIMULATED,SIMULATED_1,SIMULATED_2" \
 	go test -timeout 1h -count=1 -json $(args) ./smoke 2>&1 | tee /tmp/gotest.log | gotestfmt
 
+.PHONY: test_smoke_simulated_verbose
+test_smoke_simulated_verbose: ## Run all smoke tests with verbose logging
+	SELECTED_NETWORKS="SIMULATED,SIMULATED_1,SIMULATED_2" \
+	go test -timeout 24h -count=1 -v $(args) ./smoke
+
 .PHONY: test_smoke_verbose
-test_smoke_verbose: install_gotestfmt ## Run all smoke tests with verbose logging
-	go test -timeout 24h -count=1 -v -json $(args) ./smoke 2>&1 | tee /tmp/gotest.log | gotestfmt
+test_smoke_verbose: ## Run all smoke tests with verbose logging
+	go test -timeout 24h -count=1 -v $(args) ./smoke
 
 .PHONY: test_smoke_product
 test_smoke_product: ## Run smoke tests for specific product ex: make test_smoke_product product="cron" args="--focus @cron -p"
@@ -92,8 +97,8 @@ test_chaos: install_gotestfmt ## Run all smoke tests
 	go test -timeout 24h -count=1 -json $(args) ./chaos 2>&1 | tee /tmp/gotest.log | gotestfmt
 
 .PHONY: test_chaos_verbose
-test_chaos_verbose: install_gotestfmt ## Run all smoke tests with verbose logging
-	go test -timeout 24h -count=1 -v -json $(args) ./chaos 2>&1 | tee /tmp/gotest.log | gotestfmt
+test_chaos_verbose: ## Run all smoke tests with verbose logging
+	go test -timeout 24h -count=1 -v $(args) ./chaos
 
 # Performance
 .PHONY: test_perf

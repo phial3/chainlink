@@ -751,7 +751,7 @@ func setupAutomationTest(
 		require.NoError(t, err, "Error tearing down environment")
 	})
 
-	err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.1))
+	err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.5))
 	require.NoError(t, err, "Error funding Chainlink nodes")
 
 	linkToken, err := contractDeployer.DeployLinkTokenContract()

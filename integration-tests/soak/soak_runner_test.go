@@ -44,18 +44,42 @@ func TestOCRSoak(t *testing.T) {
 	// Values you want each node to have the exact same of (e.g. eth_chain_id)
 	baseTOML := `[OCR]
 Enabled = true
+ContractConfirmations = 4
 
 [P2P]
 [P2P.V1]
 Enabled = true
 ListenIP = '0.0.0.0'
 ListenPort = 6690`
+	networkTOML := `NoNewHeadsThreshold = '30s'
+ChainType = 'optimismBedrock'
+LogPollInterval = '2s'
+FinalityDepth = 200
+MinIncomingConfirmations = 3
+
+[[Transactions]]
+ResendAfterThreshold = '30s'
+
+[[GasEstimator]]
+Mode = 'BlockHistory'
+EIP1559DynamicFees = true
+BumpThreshold = 3
+
+[[GasEstimator.BlockHistory]]
+BlockHistorySize = 24
+
+[[HeadTracker]]
+HistoryDepth = 300
+SamplingInterval = '1s'
+
+[[NodePool]]
+SyncThreshold = 10`
 	testEnvironment := environment.New(baseEnvironmentConfig).
 		AddHelm(mockservercfg.New(nil)).
 		AddHelm(mockserver.New(nil))
 	for i := 0; i < replicas; i++ {
 		testEnvironment.AddHelm(chainlink.New(i, map[string]interface{}{
-			"toml": client.AddNetworksConfig(baseTOML, activeEVMNetwork),
+			"toml": client.AddNetworkDetailedConfig(baseTOML, networkTOML, activeEVMNetwork),
 		}))
 	}
 

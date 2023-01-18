@@ -26,7 +26,7 @@ import (
 func TestOCRBasic(t *testing.T) {
 	t.Parallel()
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10; i++ {
 		t.Run(fmt.Sprintf("Test %d", i), func(t *testing.T) {
 			t.Parallel()
 			testEnvironment, testNetwork := setupOCRTest(t)
@@ -50,7 +50,8 @@ func TestOCRBasic(t *testing.T) {
 			linkTokenContract, err := contractDeployer.DeployLinkTokenContract()
 			require.NoError(t, err, "Deploying Link Token Contract shouldn't fail")
 
-			err = actions.FundChainlinkNodes(chainlinkNodes, chainClient, big.NewFloat(.05))
+			// Bootstrap node doesn't need funding
+			err = actions.FundChainlinkNodes(chainlinkNodes[1:], chainClient, big.NewFloat(.05))
 			require.NoError(t, err, "Error funding Chainlink nodes")
 
 			ocrInstances := actions.DeployOCRContracts(t, 1, linkTokenContract, contractDeployer, chainlinkNodes, chainClient)

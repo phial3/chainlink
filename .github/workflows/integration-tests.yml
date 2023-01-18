@@ -1,6 +1,9 @@
 name: Integration Tests
 on:
   pull_request:
+  push:
+    tags:
+      - "*"
 
 # Only run 1 of this workflow at a time per PR
 concurrency:
@@ -281,3 +284,61 @@ jobs:
           this-job-name: Solana Smoke Tests
         continue-on-error: true
   ### End Solana Section
+
+  ### Live Testnets Section
+  ### Only runs OCR on a select number of testnets for now
+  eth-smoke-tesnet-tests:
+    environment: integration
+    if: startsWith(github.ref, 'refs/tags/') # Runs only when a new tag is cut
+    needs: [build-chainlink]
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      id-token: write
+      contents: read
+    name: ${{ matrix.testnet }} Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        testnet: [GOERLI, OPTIMISM_GOERLI, ARBITRUM_GOERLI]
+    env:
+      CHAINLINK_COMMIT_SHA: ${{ github.sha }}
+      CHAINLINK_ENV_USER: ${{ github.actor }}
+      SELECTED_NETWORKS: ${{ matrix.testnet }}
+      TEST_TRIGGERED_BY: tag-${{ github.ref_name }}
+      TEST_LOG_LEVEL: debug
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Run Tests
+        uses: smartcontractkit/chainlink-github-actions/chainlink-testing-framework/run-tests@e72f0a768ac934afce498a802de893d89b12802f # v2.1.1
+        with:
+          test_command_to_run: make test_need_operator_assets && cd ./integration-tests && go test -timeout 30m -count=1 -json ./smoke/ocr_test.go 2>&1 | tee /tmp/gotest.log | gotestfmt
+          test_download_vendor_packages_command: make gomod
+          cl_repo: ${{ secrets.QA_AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.QA_AWS_REGION }}.amazonaws.com/chainlink
+          cl_image_tag: latest.${{ github.sha }}
+          artifacts_location: ./integration-tests/smoke/logs
+          publish_check_name: ${{ matrix.testnet }} Tests
+          triggered_by: tag-${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          go_mod_path: ./integration-tests/go.mod
+          QA_AWS_REGION: ${{ secrets.QA_AWS_REGION }}
+          QA_AWS_ROLE_TO_ASSUME: ${{ secrets.QA_AWS_ROLE_TO_ASSUME }}
+          QA_KUBECONFIG: ${{ secrets.QA_KUBECONFIG }}
+      - name: cleanup
+        if: always()
+        uses: smartcontractkit/chainlink-github-actions/chainlink-testing-framework/cleanup@e72f0a768ac934afce498a802de893d89b12802f # v2.1.1
+        with:
+          triggered_by: tag-${{ github.ref_name }}
+      - name: Collect Metrics
+        if: always()
+        id: collect-gha-metrics
+        uses: smartcontractkit/push-gha-metrics-action@808c183d1f5c26a4f3fd50b75d3cf7b58d9aa293
+        with:
+          basic-auth: ${{ secrets.GRAFANA_CLOUD_BASIC_AUTH }}
+          hostname: ${{ secrets.GRAFANA_CLOUD_HOST }}
+          this-job-name: ${{ matrix.testnet }} Tests
+        continue-on-error: true
