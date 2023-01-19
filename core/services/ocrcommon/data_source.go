@@ -127,6 +127,7 @@ func (ds *inMemoryDataSource) executeRun(ctx context.Context) (pipeline.Run, pip
 }
 
 // parse uses the finalResult into a big.Int and stores it in the bridge metadata
+// TODO: Need to find a way to parse differently - can we pass in a custom parser?
 func (ds *inMemoryDataSource) parse(finalResult pipeline.FinalResult) (*big.Int, error) {
 	result, err := finalResult.SingularResult()
 	if err != nil {

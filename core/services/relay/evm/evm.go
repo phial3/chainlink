@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/sqlx"
 	"go.uber.org/multierr"
 
+	relaymercury "github.com/smartcontractkit/chainlink-relay/pkg/plugins/mercury"
 	relaytypes "github.com/smartcontractkit/chainlink-relay/pkg/types"
 
 	"github.com/smartcontractkit/chainlink/core/chains/evm"
@@ -26,9 +27,11 @@ import (
 	"github.com/smartcontractkit/chainlink/core/services"
 	"github.com/smartcontractkit/chainlink/core/services/job"
 	"github.com/smartcontractkit/chainlink/core/services/keystore"
+	mercuryconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/mercury/config"
 	"github.com/smartcontractkit/chainlink/core/services/ocrcommon"
 	"github.com/smartcontractkit/chainlink/core/services/pipeline"
 	"github.com/smartcontractkit/chainlink/core/services/relay/evm/mercury"
+	"github.com/smartcontractkit/chainlink/core/services/relay/evm/mercury/reportcodec"
 	"github.com/smartcontractkit/chainlink/core/services/relay/evm/mercury/wsrpc"
 	types "github.com/smartcontractkit/chainlink/core/services/relay/evm/types"
 	"github.com/smartcontractkit/chainlink/core/utils"
@@ -37,7 +40,6 @@ import (
 var _ relaytypes.Relayer = &Relayer{}
 
 type RelayerConfig interface {
-	MercuryCredentials(url string) (username, password string, err error)
 }
 
 type Relayer struct {
@@ -315,25 +317,22 @@ func (r *Relayer) NewMedianProvider(rargs relaytypes.RelayArgs, pargs relaytypes
 		return nil, err
 	}
 
+	// TODO: Rename to MedianConfig? It has Median-specific stuff in there like TransmitterID
 	var relayConfig types.RelayConfig
 	if err = json.Unmarshal(rargs.RelayConfig, &relayConfig); err != nil {
 		return nil, err
 	}
 	var contractTransmitter ContractTransmitter
 	var reportCodec median.ReportCodec
-	if relayConfig.MercuryConfig != nil {
-		r.lggr.Debugf("Mercury mode enabled for job %d", rargs.JobID)
-		contractTransmitter, reportCodec, err = r.NewMercuryMedianProvider(relayConfig)
-	} else {
-		r.lggr.Debugf("On-chain mode enabled for job %d", rargs.JobID)
-		reportCodec = evmreportcodec.ReportCodec{}
-		contractTransmitter, err = newContractTransmitter(r.lggr, rargs, pargs.TransmitterID, configWatcher, r.ks.Eth())
-	}
+
+	r.lggr.Debugf("On-chain mode enabled for job %d", rargs.JobID)
+	reportCodec = evmreportcodec.ReportCodec{}
+	contractTransmitter, err = newContractTransmitter(r.lggr, rargs, pargs.TransmitterID, configWatcher, r.ks.Eth())
 	if err != nil {
 		return nil, err
 	}
 
-	medianContract, err := newMedianContract(configWatcher.ContractConfigTracker(), configWatcher.contractAddress, configWatcher.chain, rargs.JobID, r.db, r.lggr, relayConfig.MercuryConfig != nil)
+	medianContract, err := newMedianContract(configWatcher.ContractConfigTracker(), configWatcher.contractAddress, configWatcher.chain, rargs.JobID, r.db, r.lggr)
 	if err != nil {
 		return nil, err
 	}
@@ -343,35 +342,6 @@ func (r *Relayer) NewMedianProvider(rargs relaytypes.RelayArgs, pargs relaytypes
 		contractTransmitter: contractTransmitter,
 		medianContract:      medianContract,
 	}, nil
-
-}
-
-func (r *Relayer) NewMercuryMedianProvider(relayConfig types.RelayConfig) (contractTransmitter ContractTransmitter, reportCodec median.ReportCodec, err error) {
-	// Override on-chain transmitter with Mercury if the relevant config is set
-	reportURL := relayConfig.MercuryConfig.URL
-	if reportURL == nil {
-		return contractTransmitter, reportCodec, errors.New("Mercury URL must be specified")
-	}
-	if !relayConfig.EffectiveTransmitterAddress.Valid {
-		return contractTransmitter, reportCodec, errors.New("EffectiveTransmitterAddress must be specified")
-	}
-	effectiveTransmitterAddress := common.HexToAddress(relayConfig.EffectiveTransmitterAddress.String)
-	var username, password string
-	username, password, err = r.cfg.MercuryCredentials(reportURL.String())
-	if err != nil {
-		return contractTransmitter, reportCodec, errors.Wrapf(err, "failed to get mercury credentials for URL: %s", reportURL.String())
-	}
-	privKey, err := r.ks.CSA().Get(relayConfig.MercuryConfig.ClientPrivKeyID)
-	if err != nil {
-		return contractTransmitter, reportCodec, errors.Wrap(err, "failed to get CSA key for mercury connection")
-	}
-	serverPubKey := relayConfig.MercuryConfig.ServerPubKey
-	contractTransmitter = mercury.NewTransmitter(r.lggr, wsrpc.NewClient(privKey, serverPubKey, reportURL.URL()), effectiveTransmitterAddress, reportURL.String(), username, password)
-	if relayConfig.MercuryConfig.FeedID == (common.Hash{}) {
-		return contractTransmitter, reportCodec, errors.New("FeedID must be specified")
-	}
-	reportCodec = mercury.ReportCodec{FeedID: relayConfig.MercuryConfig.FeedID}
-	return
 }
 
 var _ relaytypes.MedianProvider = (*medianProvider)(nil)
@@ -423,4 +393,113 @@ func (p *medianProvider) OffchainConfigDigester() ocrtypes.OffchainConfigDigeste
 
 func (p *medianProvider) ContractConfigTracker() ocrtypes.ContractConfigTracker {
 	return p.configWatcher.ContractConfigTracker()
+}
+
+// FIXME: PluginArgs has transmitter ID, this really belongs in the PluginConfig
+// TODO: Differentiate between the plugin factory and the plugin itself
+// This needs to create the factory
+func (r *Relayer) NewMercuryProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.MercuryProvider, error) {
+	// TODO: mercury needs filtering
+	configWatcher, err := newConfigProvider(r.lggr, r.chainSet, rargs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var relayConfig types.RelayConfig
+	if err = json.Unmarshal(rargs.RelayConfig, &relayConfig); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	r.lggr.Debugf("Mercury mode enabled for job %d", rargs.JobID)
+
+	var mercuryConfig mercuryconfig.PluginConfig
+	if err = json.Unmarshal(pargs.PluginConfig, &mercuryConfig); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	// Override on-chain transmitter with Mercury if the relevant config is set
+
+	// TODO: What about this?
+	// relaymercury.StandardOnchainConfigCodec{},
+	//
+	reportCodec := reportcodec.NewEVMReportCodec(mercuryConfig.FeedID, r.lggr.Named("ReportCodec"))
+	privKey, err := r.ks.CSA().Get(mercuryConfig.ClientPrivKeyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get CSA key for mercury connection")
+	}
+
+	reportURL := mercuryConfig.URL
+	if reportURL == nil {
+		return nil, errors.New("Mercury URL must be specified")
+	}
+	client := wsrpc.NewClient(privKey, mercuryConfig.ServerPubKey, reportURL.URL())
+	transmitter := mercury.NewTransmitter(r.lggr, client, reportURL.String())
+
+	if mercuryConfig.FeedID == (common.Hash{}) {
+		return nil, errors.New("FeedID must be specified")
+	}
+
+	// TODO: How to construct a ReportingPluginFactory here?
+	// lggr := fac.Logger.With(
+	//     "configDigest", configuration.ConfigDigest,
+	//     "reportingPlugin", "NumericalMedian",
+	// )
+
+	// fac := mercuryplugin.Factory{
+	//     DataSource: mercuryplugin.NewDataSource(pipelineRunner,
+	//         jb,
+	//         *jb.PipelineSpec,
+	//         lggr,
+	//         runResults,
+	//     ),
+	//     Logger:             r.lggr.Named("TODO: JOB NAME HERE").With("contractID", relayConfig.ContractID), // TODO: Can we get the job name here?
+	//     OnchainConfigCodec: mercuryplugin.StandardOnchainConfigCodec,
+	//     ReportCodec:        reportCodec,
+	// }
+	return &mercuryProvider{configWatcher, transmitter, reportCodec, services.MultiStart{}}, nil
+}
+
+var _ relaytypes.MercuryProvider = (*mercuryProvider)(nil)
+
+type mercuryProvider struct {
+	configWatcher *configWatcher
+	transmitter   mercury.Transmitter
+	reportCodec   relaymercury.ReportCodec
+
+	ms services.MultiStart
+}
+
+func (p *mercuryProvider) Start(ctx context.Context) error {
+	return p.ms.Start(ctx, p.configWatcher, p.transmitter)
+}
+
+func (p *mercuryProvider) Close() error {
+	return p.ms.Close()
+}
+
+func (p *mercuryProvider) Ready() error {
+	return multierr.Combine(p.configWatcher.Ready(), p.transmitter.Ready())
+}
+
+func (p *mercuryProvider) Healthy() error {
+	return multierr.Combine(p.configWatcher.Healthy(), p.transmitter.Healthy())
+}
+
+func (p *mercuryProvider) ContractConfigTracker() ocrtypes.ContractConfigTracker {
+	return p.configWatcher.ContractConfigTracker()
+}
+
+func (p *mercuryProvider) OffchainConfigDigester() ocrtypes.OffchainConfigDigester {
+	return p.configWatcher.OffchainConfigDigester()
+}
+
+func (p *mercuryProvider) OnchainConfigCodec() relaymercury.OnchainConfigCodec {
+	return relaymercury.StandardOnchainConfigCodec{}
+}
+
+func (p *mercuryProvider) ReportCodec() relaymercury.ReportCodec {
+	return p.reportCodec
+}
+
+func (p *mercuryProvider) ContractTransmitter() relaymercury.Transmitter {
+	return p.transmitter
 }

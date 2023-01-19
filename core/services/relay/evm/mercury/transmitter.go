@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
+	relaymercury "github.com/smartcontractkit/chainlink-relay/pkg/plugins/mercury"
 	"github.com/smartcontractkit/libocr/offchainreporting2/chains/evmutil"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2/types"
 
@@ -16,18 +16,18 @@ import (
 	pb "github.com/smartcontractkit/chainlink/core/services/relay/evm/mercury/wsrpc/report"
 )
 
-var _ ocrtypes.ContractTransmitter = &mercuryTransmitter{}
-var _ services.ServiceCtx = &mercuryTransmitter{}
+type Transmitter interface {
+	relaymercury.Transmitter
+	services.ServiceCtx
+}
+
+var _ Transmitter = &mercuryTransmitter{}
 
 type mercuryTransmitter struct {
 	lggr      logger.Logger
 	rpcClient wsrpc.Client
 
-	fromAccount common.Address
-
 	reportURL string
-	username  string
-	password  string
 }
 
 var payloadTypes = getPayloadTypes()
@@ -49,8 +49,8 @@ func getPayloadTypes() abi.Arguments {
 	})
 }
 
-func NewTransmitter(lggr logger.Logger, rpcClient wsrpc.Client, fromAccount common.Address, reportURL, username, password string) *mercuryTransmitter {
-	return &mercuryTransmitter{lggr.Named("Mercury"), rpcClient, fromAccount, reportURL, username, password}
+func NewTransmitter(lggr logger.Logger, rpcClient wsrpc.Client, reportURL string) *mercuryTransmitter {
+	return &mercuryTransmitter{lggr.Named("Mercury"), rpcClient, reportURL}
 }
 
 func (mt *mercuryTransmitter) Start(ctx context.Context) error { return mt.rpcClient.Start(ctx) }
@@ -100,8 +100,9 @@ func (mt *mercuryTransmitter) Transmit(ctx context.Context, reportCtx ocrtypes.R
 	return nil
 }
 
+// TODO: Should return CSA pub key actually
 func (mt *mercuryTransmitter) FromAccount() ocrtypes.Account {
-	return ocrtypes.Account(mt.fromAccount.Hex())
+	return ocrtypes.Account("")
 }
 
 // LatestConfigDigestAndEpoch retrieves the latest config digest and epoch from the OCR2 contract.
@@ -113,4 +114,9 @@ func (mt *mercuryTransmitter) LatestConfigDigestAndEpoch(ctx context.Context) (c
 	// https://app.shortcut.com/chainlinklabs/story/57500/return-the-actual-latest-transmission-details
 	err = errors.New("Retrieving config digest/epoch is not supported in Mercury mode")
 	return
+}
+
+func (mt *mercuryTransmitter) FetchInitialMaxFinalizedBlockNumber(context.Context) (int64, error) {
+	// TODO: transmitter needs to be started for this to work
+	return 0, errors.New("TODO")
 }

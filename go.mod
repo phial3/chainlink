@@ -58,7 +58,7 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/shopspring/decimal v1.3.1
-	github.com/smartcontractkit/chainlink-relay v0.1.6-0.20221025223751-9b407cff57eb
+	github.com/smartcontractkit/chainlink-relay v0.1.6-0.20230118141007-0773f68325cd
 	github.com/smartcontractkit/chainlink-solana v1.0.2-0.20220930034647-edd5a863b876
 	github.com/smartcontractkit/chainlink-starknet/relayer v0.0.0-20230125162500-4e7ec33e60db
 	github.com/smartcontractkit/chainlink-terra v0.1.4-0.20220930034731-ef9eb53de886
@@ -378,3 +378,11 @@ exclude (
 	github.com/nats-io/nats-server/v2 v2.1.2
 	github.com/nats-io/nats-server/v2 v2.5.0
 )
+
+replace github.com/smartcontractkit/chainlink-relay => /Users/sam/code/smartcontractkit/chainlink-relay
+
+replace github.com/smartcontractkit/chainlink-solana => /Users/sam/code/smartcontractkit/chainlink-solana
+
+replace github.com/smartcontractkit/chainlink-terra => /Users/sam/code/smartcontractkit/chainlink-terra
+
+replace github.com/smartcontractkit/chainlink-starknet/relayer => /Users/sam/code/smartcontractkit/chainlink-starknet/relayer
