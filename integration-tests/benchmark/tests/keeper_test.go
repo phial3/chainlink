@@ -235,7 +235,7 @@ func TestKeeperBenchmarkOptimismGoerliRegistry_2_0(t *testing.T) {
 		int64(20),
 		predeployedConsumersEmpty,
 		upkeepResetterContractEmpty,
-		5 * time.Second,
+		4 * time.Second,
 	})
 }
 
