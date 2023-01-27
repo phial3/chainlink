@@ -51,10 +51,10 @@ func BuildAutoOCR2ConfigVars(
 		types2.OffchainConfig{
 			TargetProbability:    "0.999",
 			TargetInRounds:       1,
-			PerformLockoutWindow: 100 * 12 * 1000, // ~100 block lockout (on goerli)
-			UniqueReports:        false,           // set quorum requirements
-			GasLimitPerReport:    5_300_000,
-			GasOverheadPerUpkeep: 300_000,
+			PerformLockoutWindow: 60000, // ~100 block lockout (on goerli)
+			UniqueReports:        false, // set quorum requirements
+			GasLimitPerReport:    6_500_000,
+			GasOverheadPerUpkeep: 1_500_000,
 			SamplingJobDuration:  3000,
 			MinConfirmations:     0,
 			MaxUpkeepBatchSize:   20,
