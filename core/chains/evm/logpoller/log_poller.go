@@ -224,7 +224,20 @@ func (lp *logPoller) filter(from, to *big.Int, bh *common.Hash) ethereum.FilterQ
 // Blocks until the replay is complete.
 // Replay can be used to ensure that filter modification has been applied for all blocks from "fromBlock" up to latest.
 func (lp *logPoller) Replay(ctx context.Context, fromBlock int64, async bool) error {
-	latest, err := lp.ec.HeadByNumber(ctx, nil)
+	replayCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		// merge log poller context and parent context.  If either of them
+		// are cancelled, abort replay
+		select {
+		case <-lp.ctx.Done():
+			cancel()
+		case <-ctx.Done():
+			cancel()
+		case <-replayCtx.Done():
+		}
+	}()
+
+	latest, err := lp.ec.HeadByNumber(replayCtx, nil)
 	if err != nil {
 		return err
 	}
@@ -237,6 +250,7 @@ func (lp *logPoller) Replay(ctx context.Context, fromBlock int64, async bool) er
 	case <-lp.ctx.Done():
 		return ErrReplayAbortedOnShutdown
 	case <-ctx.Done():
+		cancel()
 		return ErrReplayAbortedByClient
 	}
 
@@ -249,8 +263,10 @@ func (lp *logPoller) Replay(ctx context.Context, fromBlock int64, async bool) er
 			lp.lggr.Debugf("Replay completed successfully")
 			return err
 		case <-lp.ctx.Done():
+			cancel()
 			return ErrReplayAbortedOnShutdown
 		case <-ctx.Done():
+			cancel()
 			return ErrReplayAbortedByClient
 		}
 	}
@@ -263,7 +279,7 @@ func (lp *logPoller) Replay(ctx context.Context, fromBlock int64, async bool) er
 			if err != nil {
 				lp.lggr.Errorf("logpoller Replay aborted: %w", err)
 			}
-		}
+		}()
 		return nil
 	}
 	return waitForReplayComplete()
