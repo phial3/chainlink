@@ -30,11 +30,10 @@ import (
 	"github.com/smartcontractkit/chainlink/integration-tests/contracts"
 )
 
-func BuildAutoOCR2ConfigVars(
+func BuildGeneralOCR2Config(
 	t *testing.T,
 	chainlinkNodes []*client.Chainlink,
-	registryConfig contracts.KeeperRegistrySettings,
-	registrar string,
+	onchainConfig []byte,
 	deltaStage time.Duration,
 ) contracts.OCRConfig {
 	S, oracleIdentities := getOracleIdentities(t, chainlinkNodes)
@@ -81,10 +80,7 @@ func BuildAutoOCR2ConfigVars(
 		transmitters = append(transmitters, common.HexToAddress(string(transmitter)))
 	}
 
-	onchainConfig, err := registryConfig.EncodeOnChainConfig(registrar)
-	require.NoError(t, err, "Shouldn't fail encoding config")
-
-	log.Info().Msg("Done building OCR config")
+	log.Info().Msg("Done building OCR2 config")
 	return contracts.OCRConfig{
 		Signers:               signers,
 		Transmitters:          transmitters,
@@ -93,6 +89,19 @@ func BuildAutoOCR2ConfigVars(
 		OffchainConfigVersion: offchainConfigVersion,
 		OffchainConfig:        offchainConfig,
 	}
+}
+
+func BuildKeepersOCR2Config(
+	t *testing.T,
+	chainlinkNodes []*client.Chainlink,
+	registryConfig contracts.KeeperRegistrySettings,
+	registrar string,
+	deltaStage time.Duration,
+) contracts.OCRConfig {
+	onchainConfig, err := registryConfig.EncodeOnChainConfig(registrar)
+	require.NoError(t, err, "Shouldn't fail encoding config")
+
+	return BuildGeneralOCR2Config(t, chainlinkNodes, onchainConfig, deltaStage)
 }
 
 func getOracleIdentities(t *testing.T, chainlinkNodes []*client.Chainlink) ([]int, []confighelper.OracleIdentityExtra) {
