@@ -8,20 +8,20 @@ import (
 
 	"github.com/smartcontractkit/sqlx"
 
+	"github.com/smartcontractkit/chainlink-relay/pkg/loop"
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana"
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana/config"
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana/db"
 
 	"github.com/smartcontractkit/chainlink/core/chains"
 	"github.com/smartcontractkit/chainlink/core/logger"
-	"github.com/smartcontractkit/chainlink/core/services/keystore"
 )
 
 // ChainSetOpts holds options for configuring a ChainSet.
 type ChainSetOpts struct {
 	Logger   logger.Logger
 	DB       *sqlx.DB
-	KeyStore keystore.Solana
+	KeyStore loop.Keystore
 	ORM      ORM
 }
 

@@ -11,19 +11,20 @@ import (
 	solanago "github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/pkg/errors"
+	"github.com/smartcontractkit/chainlink-relay/pkg/loop"
 	"go.uber.org/multierr"
 
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana"
 	solanaclient "github.com/smartcontractkit/chainlink-solana/pkg/solana/client"
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana/config"
 	"github.com/smartcontractkit/chainlink-solana/pkg/solana/db"
+
 	v2 "github.com/smartcontractkit/chainlink/core/config/v2"
 
 	"github.com/smartcontractkit/chainlink/core/chains/solana/monitor"
 	"github.com/smartcontractkit/chainlink/core/chains/solana/soltxm"
 	"github.com/smartcontractkit/chainlink/core/logger"
 	"github.com/smartcontractkit/chainlink/core/services"
-	"github.com/smartcontractkit/chainlink/core/services/keystore"
 	"github.com/smartcontractkit/chainlink/core/utils"
 )
 
@@ -173,7 +174,7 @@ func (v *verifiedCachedClient) GetAccountInfoWithOpts(ctx context.Context, addr 
 	return v.ReaderWriter.GetAccountInfoWithOpts(ctx, addr, opts)
 }
 
-func newChain(id string, cfg config.Config, ks keystore.Solana, orm ORM, lggr logger.Logger) (*chain, error) {
+func newChain(id string, cfg config.Config, ks loop.Keystore, orm ORM, lggr logger.Logger) (*chain, error) {
 	lggr = lggr.With("chainID", id, "chainSet", "solana")
 	var ch = chain{
 		id:          id,
@@ -186,6 +187,7 @@ func newChain(id string, cfg config.Config, ks keystore.Solana, orm ORM, lggr lo
 		return ch.getClient()
 	}
 	ch.txm = soltxm.NewTxm(ch.id, tc, cfg, ks, lggr)
+	//TODO inject balance monitor func too?
 	ch.balanceMonitor = monitor.NewBalanceMonitor(ch.id, cfg, lggr, ks, ch.Reader)
 	return &ch, nil
 }

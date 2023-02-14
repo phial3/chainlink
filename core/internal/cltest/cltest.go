@@ -477,7 +477,7 @@ func NewApplicationWithConfig(t testing.TB, cfg config.GeneralConfig, flagsAndDe
 		opts := solana.ChainSetOpts{
 			Logger:   solLggr,
 			DB:       db,
-			KeyStore: keyStore.Solana(),
+			KeyStore: &keystore.SolanaSigner{keyStore.Solana()},
 		}
 		if newCfg, ok := cfg.(interface {
 			SolanaConfigs() solana.SolanaConfigs
