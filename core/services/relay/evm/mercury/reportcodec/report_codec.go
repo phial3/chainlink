@@ -2,7 +2,6 @@ package reportcodec
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -59,39 +58,21 @@ func (r *EVMReportCodec) BuildReport(paos []relaymercury.ParsedAttributedObserva
 	// copy so we can safely sort in place
 	paos = append([]relaymercury.ParsedAttributedObservation{}, paos...)
 
-	// get median timestamp
-	sort.Slice(paos, func(i, j int) bool {
-		return paos[i].Timestamp < paos[j].Timestamp
-	})
-	timestamp := paos[len(paos)/2].Timestamp
+	timestamp := relaymercury.GetConsensusTimestamp(paos)
+	benchmarkPrice := relaymercury.GetConsensusBenchmarkPrice(paos)
+	bid := relaymercury.GetConsensusBid(paos)
+	ask := relaymercury.GetConsensusAsk(paos)
 
-	// get median benchmark price
-	sort.Slice(paos, func(i, j int) bool {
-		return paos[i].BenchmarkPrice.Cmp(paos[j].BenchmarkPrice) < 0
-	})
-	benchmarkPrice := paos[len(paos)/2].BenchmarkPrice
-
-	// get median bid
-	sort.Slice(paos, func(i, j int) bool {
-		return paos[i].Bid.Cmp(paos[j].Bid) < 0
-	})
-	bid := paos[len(paos)/2].Bid
-
-	// get median ask
-	sort.Slice(paos, func(i, j int) bool {
-		return paos[i].Ask.Cmp(paos[j].Ask) < 0
-	})
-	ask := paos[len(paos)/2].Ask
-
-	// get most common currentBlockHash
 	currentBlockHash, currentBlockNum, err := relaymercury.GetConsensusCurrentBlock(paos, f)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "GetConsensusCurrentBlock failed")
 	}
 
 	// get median validFromBlockNum
-	// FIXME: Distinguish between tipBlockNumber and ValidFromBlockNum (= tipBlockNumber + 1)
-	validFromBlockNum := relaymercury.GetConsensusValidFromBlock(paos)
+	validFromBlockNum, err := relaymercury.GetConsensusValidFromBlock(paos)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetConsensusValidFromBlock failed")
+	}
 
 	// Q for Lorenz:
 	// TODO: Validate non-zero/non-nil values?
