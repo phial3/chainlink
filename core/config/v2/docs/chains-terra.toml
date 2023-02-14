@@ -3,6 +3,10 @@
 ChainID = 'Bombay-12' # Example
 # Enabled enables this chain.
 Enabled = true # Default
+# Plugin enables the experimental Terra plugin - Not currently supported
+Plugin = false # Default
+# PluginPath overrides the default expected location of the experimental Terra plugin - Not currently supported
+PluginPath = ''
 # BlockRate is the average time between blocks.
 BlockRate = '6s' # Default
 # BlocksUntilTxTimeout is the number of blocks to wait before giving up on the tx getting confirmed.

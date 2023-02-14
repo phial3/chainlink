@@ -106,6 +106,7 @@ ShutdownGracePeriod is the maximum time allowed to shut down gracefully. If exce
 FeedsManager = false # Default
 LogPoller = false # Default
 UICSAKeys = false # Default
+BlockchainPlugins = false # Default
 ```
 
 
@@ -126,6 +127,12 @@ LogPoller enables the log poller, an experimental approach to processing logs, r
 UICSAKeys = false # Default
 ```
 UICSAKeys enables CSA Keys in the UI.
+
+### BlockchainPlugins<a id='Feature-BlockchainPlugins'></a>
+```toml
+BlockchainPlugins = false # Default
+```
+BlockchainPlugins enables experimental blockchain plugin support.
 
 ## Database<a id='Database'></a>
 ```toml
@@ -4533,6 +4540,8 @@ GasLimit controls the gas limit for transmit transactions from ocr2automation jo
 [[Solana]]
 ChainID = 'mainnet' # Example
 Enabled = false # Default
+Plugin = false # Default
+PluginPath = '' # Default
 BalancePollPeriod = '5s' # Default
 ConfirmPollPeriod = '500ms' # Default
 OCR2CachePollPeriod = '1s' # Default
@@ -4557,6 +4566,18 @@ ChainID is the Solana chain ID. Must be one of: mainnet, testnet, devnet, localn
 Enabled = false # Default
 ```
 Enabled enables this chain.
+
+### Plugin<a id='Solana-Plugin'></a>
+```toml
+Plugin = false # Default
+```
+Plugin enables the use of the experimental Solana plugin.
+
+### PluginPath<a id='Solana-PluginPath'></a>
+```toml
+PluginPath = '' # Default
+```
+PluginPath overrides the location of the experimental Solana plugin.
 
 ### BalancePollPeriod<a id='Solana-BalancePollPeriod'></a>
 ```toml

@@ -53,6 +53,7 @@ type FeatureFlags interface {
 	FeatureOffchainReporting2() bool
 	FeatureUICSAKeys() bool
 	FeatureLogPoller() bool
+	FeatureBlockchainPlugins() bool
 
 	AutoPprofEnabled() bool
 	EVMEnabled() bool
@@ -61,6 +62,7 @@ type FeatureFlags interface {
 	SolanaEnabled() bool
 	TerraEnabled() bool
 	StarkNetEnabled() bool
+	ChainPluginsSpecified() (bool, error)
 }
 
 type LogFn func(...any)
@@ -758,6 +760,11 @@ func (c *generalConfig) FeatureFeedsManager() bool {
 	return c.viper.GetBool(envvar.Name("FeatureFeedsManager"))
 }
 
+// Chain Plugins POC - This feature flag is ONLY supported via TOML - so we return false here
+func (c *generalConfig) FeatureBlockchainPlugins() bool {
+	return false
+}
+
 func (c *generalConfig) FeatureLogPoller() bool {
 	return c.viper.GetBool(envvar.Name("FeatureLogPoller"))
 }
@@ -877,6 +884,11 @@ func (c *generalConfig) StarkNetEnabled() bool {
 // TerraEnabled allows Terra to be used
 func (c *generalConfig) TerraEnabled() bool {
 	return c.viper.GetBool(envvar.Name("TerraEnabled"))
+}
+
+// Chain Plugins POC - This feature flag is ONLY supported via TOML - so we return false here
+func (c *generalConfig) ChainPluginsSpecified() (bool, error) {
+	return false, nil
 }
 
 // P2PEnabled controls whether Chainlink will run as a P2P peer for OCR protocol

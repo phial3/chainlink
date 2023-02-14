@@ -167,8 +167,10 @@ func legacyNode(n *tercfg.Node, id string) db.Node {
 }
 
 type TerraConfig struct {
-	ChainID *string
-	Enabled *bool
+	ChainID    *string
+	Enabled    *bool
+	Plugin     *bool
+	PluginPath *string
 	tercfg.Chain
 	Nodes TerraNodes
 }
@@ -183,6 +185,12 @@ func (c *TerraConfig) SetFrom(f *TerraConfig) {
 	}
 	if f.Enabled != nil {
 		c.Enabled = f.Enabled
+	}
+	if f.Plugin != nil {
+		c.Plugin = f.Plugin
+	}
+	if f.PluginPath != nil {
+		c.PluginPath = f.PluginPath
 	}
 	setFromChain(&c.Chain, &f.Chain)
 	c.Nodes.SetFrom(&f.Nodes)
@@ -243,6 +251,11 @@ func (c *TerraConfig) ValidateConfig() (err error) {
 		err = multierr.Append(err, v2.ErrMissing{Name: "ChainID", Msg: "required for all chains"})
 	} else if *c.ChainID == "" {
 		err = multierr.Append(err, v2.ErrEmpty{Name: "ChainID", Msg: "required for all chains"})
+	}
+
+	// Plugins not yet supported for Terra
+	if c.Plugin != nil && *c.Plugin == true {
+		err = multierr.Append(err, v2.ErrInvalid{Name: "Plugin", Msg: "Terra chain plugins are not currently supported"})
 	}
 
 	if len(c.Nodes) == 0 {

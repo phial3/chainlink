@@ -281,6 +281,8 @@ SendOnly = true
 
 [[Solana]]
 ChainID = 'mainnet'
+Plugin = false
+PluginPath = ''
 BalancePollPeriod = '8s'
 ConfirmPollPeriod = '5m9s'
 OCR2CachePollPeriod = '1h7m0s'

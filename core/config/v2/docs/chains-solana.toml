@@ -19,11 +19,15 @@ TxRetryTimeout = '10s' # Default
 TxConfirmTimeout = '30s' # Default
 # SkipPreflight enables or disables preflight checks when sending txs.
 SkipPreflight = true # Default
-# Commitment is the confirmation level for solana state and transactions. ([documentation](https://docs.solana.com/developing/clients/jsonrpc-api#configuring-state-commitment))
+# Commitment is the confirmation level for Solana state and transactions. ([documentation](https://docs.solana.com/developing/clients/jsonrpc-api#configuring-state-commitment))
 Commitment = 'confirmed' # Default
 # MaxRetries is the maximum number of times the RPC node will automatically rebroadcast a tx.
 # The default is 0 for custom txm rebroadcasting method, set to -1 to use the RPC node's default retry strategy.
 MaxRetries = 0 # Default
+# Plugin enables the experimental Solana plugin
+Plugin = false # Default
+# PluginPath overrides the default expected location of the experimental Solana plugin
+PluginPath = ''
 
 [[Solana.Nodes]]
 # Name is a unique (per-chain) identifier for this node.
