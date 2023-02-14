@@ -102,7 +102,7 @@ func (mt *mercuryTransmitter) Transmit(ctx context.Context, reportCtx ocrtypes.R
 
 // TODO: Should return CSA pub key actually
 func (mt *mercuryTransmitter) FromAccount() ocrtypes.Account {
-	return ocrtypes.Account("")
+	return ocrtypes.Account("TODO")
 }
 
 // LatestConfigDigestAndEpoch retrieves the latest config digest and epoch from the OCR2 contract.
@@ -110,13 +110,11 @@ func (mt *mercuryTransmitter) FromAccount() ocrtypes.Account {
 // by using the evm client Call directly for functions/events that are part of OCR2Abstract.
 func (mt *mercuryTransmitter) LatestConfigDigestAndEpoch(ctx context.Context) (cd ocrtypes.ConfigDigest, epoch uint32, err error) {
 	// ConfigDigest and epoch are not stored on the contract in mercury mode
-	// TODO: Do we need to support retrieving it from the server? Does it matter?
-	// https://app.shortcut.com/chainlinklabs/story/57500/return-the-actual-latest-transmission-details
-	err = errors.New("Retrieving config digest/epoch is not supported in Mercury mode")
-	return
+	// TODO: Need to implement this for Mercury
+	return errors.New("TODO")
 }
 
 func (mt *mercuryTransmitter) FetchInitialMaxFinalizedBlockNumber(context.Context) (int64, error) {
-	// TODO: transmitter needs to be started for this to work
+	// TODO: Need to implement this for Mercury
 	return 0, errors.New("TODO")
 }

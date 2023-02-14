@@ -317,7 +317,6 @@ func (r *Relayer) NewMedianProvider(rargs relaytypes.RelayArgs, pargs relaytypes
 		return nil, err
 	}
 
-	// TODO: Rename to MedianConfig? It has Median-specific stuff in there like TransmitterID
 	var relayConfig types.RelayConfig
 	if err = json.Unmarshal(rargs.RelayConfig, &relayConfig); err != nil {
 		return nil, err
@@ -395,9 +394,6 @@ func (p *medianProvider) ContractConfigTracker() ocrtypes.ContractConfigTracker 
 	return p.configWatcher.ContractConfigTracker()
 }
 
-// FIXME: PluginArgs has transmitter ID, this really belongs in the PluginConfig
-// TODO: Differentiate between the plugin factory and the plugin itself
-// This needs to create the factory
 func (r *Relayer) NewMercuryProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.MercuryProvider, error) {
 	// TODO: mercury needs filtering
 	configWatcher, err := newConfigProvider(r.lggr, r.chainSet, rargs)
@@ -410,18 +406,16 @@ func (r *Relayer) NewMercuryProvider(rargs relaytypes.RelayArgs, pargs relaytype
 		return nil, errors.WithStack(err)
 	}
 
-	r.lggr.Debugf("Mercury mode enabled for job %d", rargs.JobID)
-
 	var mercuryConfig mercuryconfig.PluginConfig
 	if err = json.Unmarshal(pargs.PluginConfig, &mercuryConfig); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	// Override on-chain transmitter with Mercury if the relevant config is set
 
-	// TODO: What about this?
-	// relaymercury.StandardOnchainConfigCodec{},
-	//
+	if mercuryConfig.FeedID == (common.Hash{}) {
+		return nil, errors.New("FeedID must be specified")
+	}
 	reportCodec := reportcodec.NewEVMReportCodec(mercuryConfig.FeedID, r.lggr.Named("ReportCodec"))
+
 	privKey, err := r.ks.CSA().Get(mercuryConfig.ClientPrivKeyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get CSA key for mercury connection")
@@ -434,27 +428,6 @@ func (r *Relayer) NewMercuryProvider(rargs relaytypes.RelayArgs, pargs relaytype
 	client := wsrpc.NewClient(privKey, mercuryConfig.ServerPubKey, reportURL.URL())
 	transmitter := mercury.NewTransmitter(r.lggr, client, reportURL.String())
 
-	if mercuryConfig.FeedID == (common.Hash{}) {
-		return nil, errors.New("FeedID must be specified")
-	}
-
-	// TODO: How to construct a ReportingPluginFactory here?
-	// lggr := fac.Logger.With(
-	//     "configDigest", configuration.ConfigDigest,
-	//     "reportingPlugin", "NumericalMedian",
-	// )
-
-	// fac := mercuryplugin.Factory{
-	//     DataSource: mercuryplugin.NewDataSource(pipelineRunner,
-	//         jb,
-	//         *jb.PipelineSpec,
-	//         lggr,
-	//         runResults,
-	//     ),
-	//     Logger:             r.lggr.Named("TODO: JOB NAME HERE").With("contractID", relayConfig.ContractID), // TODO: Can we get the job name here?
-	//     OnchainConfigCodec: mercuryplugin.StandardOnchainConfigCodec,
-	//     ReportCodec:        reportCodec,
-	// }
 	return &mercuryProvider{configWatcher, transmitter, reportCodec, services.MultiStart{}}, nil
 }
 
