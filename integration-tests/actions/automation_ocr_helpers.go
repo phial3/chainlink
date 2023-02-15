@@ -18,7 +18,9 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/contracts/ethereum"
 	"github.com/smartcontractkit/libocr/offchainreporting2/confighelper"
+	"github.com/smartcontractkit/libocr/offchainreporting2/reportingplugin/median"
 	"github.com/smartcontractkit/libocr/offchainreporting2/types"
+
 	types2 "github.com/smartcontractkit/ocr2keepers/pkg/types"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v4"
@@ -30,6 +32,64 @@ import (
 	"github.com/smartcontractkit/chainlink/integration-tests/contracts"
 )
 
+func Build2(
+	t *testing.T,
+	chainlinkNodes []*client.Chainlink,
+) contracts.OCRConfig {
+	S, oracleIdentities := getOracleIdentities(t, chainlinkNodes)
+
+	alphaPPB := uint64(1000)
+	signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, _ := confighelper.ContractSetConfigArgsForTests(
+		2*time.Second,        // deltaProgress time.Duration,
+		20*time.Second,       // deltaResend time.Duration,
+		100*time.Millisecond, // deltaRound time.Duration,
+		0,                    // deltaGrace time.Duration,
+		1*time.Minute,        // deltaStage time.Duration,
+		100,                  // rMax uint8,
+		S,                    // s []int,
+		oracleIdentities,     // oracles []OracleIdentityExtra,
+		median.OffchainConfig{
+			false,
+			alphaPPB,
+			false,
+			alphaPPB,
+			0,
+		}.Encode(),
+		0*time.Millisecond,   // maxDurationQuery time.Duration,
+		250*time.Millisecond, // maxDurationObservation time.Duration,
+		250*time.Millisecond, // maxDurationReport time.Duration,
+		250*time.Millisecond, // maxDurationShouldAcceptFinalizedReport time.Duration,
+		250*time.Millisecond, // maxDurationShouldTransmitAcceptedReport time.Duration,
+		1,                    // f int,
+		nil,                  // onchainConfig []byte,
+	)
+
+	var signers []common.Address
+	for _, signer := range signerOnchainPublicKeys {
+		require.Equal(t, 20, len(signer), "OnChainPublicKey has wrong length for address")
+		signers = append(signers, common.BytesToAddress(signer))
+	}
+
+	var transmitters []common.Address
+	for _, transmitter := range transmitterAccounts {
+		require.True(t, common.IsHexAddress(string(transmitter)), "TransmitAccount is not a valid Ethereum address")
+		transmitters = append(transmitters, common.HexToAddress(string(transmitter)))
+	}
+
+	onchainConfig, err := (median.StandardOnchainConfigCodec{}).Encode(median.OnchainConfig{median.MinValue(), median.MaxValue()})
+	require.NoError(t, err, "Shouldn't fail encoding config")
+
+	log.Info().Msg("Done building OCR2 config")
+	return contracts.OCRConfig{
+		Signers:               signers,
+		Transmitters:          transmitters,
+		F:                     f,
+		OnchainConfig:         onchainConfig,
+		OffchainConfigVersion: offchainConfigVersion,
+		OffchainConfig:        offchainConfig,
+	}
+}
+
 func BuildGeneralOCR2Config(
 	t *testing.T,
 	chainlinkNodes []*client.Chainlink,
@@ -39,14 +99,14 @@ func BuildGeneralOCR2Config(
 	S, oracleIdentities := getOracleIdentities(t, chainlinkNodes)
 
 	signerOnchainPublicKeys, transmitterAccounts, f, _, offchainConfigVersion, offchainConfig, err := confighelper.ContractSetConfigArgsForTests(
-		5*time.Second,         // deltaProgress time.Duration,
-		10*time.Second,        // deltaResend time.Duration,
-		1000*time.Millisecond, // deltaRound time.Duration,
-		20*time.Millisecond,   // deltaGrace time.Duration,
-		deltaStage,            // deltaStage time.Duration,
-		48,                    // rMax uint8,
-		S,                     // s []int,
-		oracleIdentities,      // oracles []OracleIdentityExtra,
+		2*time.Second,        // deltaProgress time.Duration,
+		20*time.Second,       // deltaResend time.Duration,
+		100*time.Millisecond, // deltaRound time.Duration,
+		0,                    // deltaGrace time.Duration,
+		1*time.Minute,        // deltaStage time.Duration,
+		100,                  // rMax uint8,
+		S,                    // s []int,
+		oracleIdentities,     // oracles []OracleIdentityExtra,
 		types2.OffchainConfig{
 			TargetProbability:    "0.999",
 			TargetInRounds:       1,
@@ -58,11 +118,11 @@ func BuildGeneralOCR2Config(
 			MinConfirmations:     0,
 			MaxUpkeepBatchSize:   20,
 		}.Encode(), // reportingPluginConfig []byte,
-		20*time.Millisecond,  // maxDurationQuery time.Duration,
-		20*time.Millisecond,  // maxDurationObservation time.Duration,
-		800*time.Millisecond, // maxDurationReport time.Duration,
-		20*time.Millisecond,  // maxDurationShouldAcceptFinalizedReport time.Duration,
-		20*time.Millisecond,  // maxDurationShouldTransmitAcceptedReport time.Duration,
+		0*time.Millisecond,   // maxDurationQuery time.Duration,
+		250*time.Millisecond, // maxDurationObservation time.Duration,
+		250*time.Millisecond, // maxDurationReport time.Duration,
+		250*time.Millisecond, // maxDurationShouldAcceptFinalizedReport time.Duration,
+		250*time.Millisecond, // maxDurationShouldTransmitAcceptedReport time.Duration,
 		1,                    // f int,
 		nil,                  // onchainConfig []byte,
 	)
@@ -89,6 +149,17 @@ func BuildGeneralOCR2Config(
 		OffchainConfigVersion: offchainConfigVersion,
 		OffchainConfig:        offchainConfig,
 	}
+}
+
+func BuildMercuryOCR2Config(
+	t *testing.T,
+	chainlinkNodes []*client.Chainlink,
+	deltaStage time.Duration,
+) contracts.OCRConfig {
+	encodedOnchainConfig, err := (median.StandardOnchainConfigCodec{}).Encode(median.OnchainConfig{median.MinValue(), median.MaxValue()})
+	require.NoError(t, err, "Shouldn't fail encoding config")
+
+	return BuildGeneralOCR2Config(t, chainlinkNodes, encodedOnchainConfig, deltaStage)
 }
 
 func BuildKeepersOCR2Config(

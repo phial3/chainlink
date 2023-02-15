@@ -49,8 +49,11 @@ func TestMercury(t *testing.T) {
 	// Setup mock server response
 	mockServerClient, err := ctfClient.ConnectMockServer(testEnvironment)
 	require.NoError(t, err, "Error connecting to mock server")
-	// err = mockServerClient.SetValuePath("/variable", 5)
-	// require.NoError(t, err, "Setting mockserver value path shouldn't fail")
+	// TODO: enable, why it is slow?
+	err = mockServerClient.SetValuePath("/constant", 5)
+	err = mockServerClient.SetRandomValuePath("/variable")
+
+	require.NoError(t, err, "Setting mockserver value path shouldn't fail")
 
 	t.Cleanup(func() {
 		err := actions.TeardownSuite(t, testEnvironment, utils.ProjectRoot, chainlinkNodes, nil, chainClient)
@@ -76,9 +79,8 @@ func TestMercury(t *testing.T) {
 	verifier, err := contractDeployer.DeployVerifier(feedID, verifierProxy.Address())
 	require.NoError(t, err, "Error deploying Verifier contract")
 	nodesWithoutBootstrap := chainlinkNodes[1:]
-	// TODO: build onchain config
-	onchainConfig := []byte("018000000000000000000000000000000000000000000000007fffffffffffffffffffffffffffffffffffffffffffffff")
-	ocrConfig := actions.BuildGeneralOCR2Config(t, nodesWithoutBootstrap, onchainConfig, 5*time.Second)
+	// ocrConfig := actions.BuildMercuryOCR2Config(t, nodesWithoutBootstrap, 5*time.Second)
+	ocrConfig := actions.Build2(t, nodesWithoutBootstrap)
 	verifier.SetConfig(ocrConfig)
 	latestConfigDetails, err := verifier.LatestConfigDetails()
 	require.NoError(t, err, "Error getting Verifier.LatestConfigDetails()")
@@ -88,7 +90,7 @@ func TestMercury(t *testing.T) {
 	// ----- Create node jobs
 	osTemplate := `
 		ds1          [type=http method=GET url="%s" allowunrestrictednetworkaccess="true"];
-		ds1_parse    [type=jsonparse path="answer"];
+		ds1_parse    [type=jsonparse path="data,result"];
 		ds1_multiply [type=multiply times=100];
 		ds1 -> ds1_parse -> ds1_multiply -> answer1;
 
@@ -97,6 +99,11 @@ func TestMercury(t *testing.T) {
 	os := fmt.Sprintf(string(osTemplate), mockServerClient.Config.ClusterURL+"/variable")
 	network := networks.SelectedNetwork
 	CreateMercuryJobs(t, chainlinkNodes, verifier.Address(), feedID, network.ChainID, 0, os)
+
+	// TODO: fix {"level":"error","ts":"2023-02-10T01:08:25.636Z","logger":"OCR","caller":"managed/track_config.go:111","msg":"TrackConfig: LatestConfigDetails() returned a zero configDigest. Looks like the contract has not been configured","contractID":"0x9d97Bf94f5B624A0211c6a005c57bd3D4c3aFc54","jobName":"ocr2","jobID":2,"configDigest":"0000000000000000000000000000000000000000000000000000000000000000","sentryEventID":null,"stacktrace":"github.com/smartcontractkit/libocr/offchainreporting2/internal/managed.(*trackConfigState).checkLatestConfigDetails\n\t/go/pkg/mod/github.com/smartcontractkit/libocr@v0.0.0-20221121171434-482da3ed36d8/offchainreporting2/internal/managed/track_config.go:111\ngithub.com/smartcontractkit/libocr/offchainreporting2/internal/managed.(*trackConfigState).run\n\t/go/pkg/mod/github.com/smartcontractkit/libocr@v0.0.0-20221121171434-482da3ed36d8/offchainreporting2/internal/managed/track_config.go:45\ngithub.com/smartcontractkit/libocr/offchainreporting2/internal/managed.TrackConfig\n\t/go/pkg/mod/github.com/smartcontractkit/libocr@v0.0.0-20221121171434-482da3ed36d8/offchainreporting2/internal/managed/track_config.go:178\ngithub.com/smartcontractkit/libocr/offchainreporting2/internal/managed.(*runWithContractConfigState).run.func1\n\t/go/pkg/mod/github.com/smartcontractkit/libocr@v0.0.0-20221121171434-482da3ed36d8/offchainreporting2/internal/managed/run_with_contract_config.go:67\ngithub.com/smartcontractkit/libocr/subprocesses.(*Subprocesses).Go.func1\n\t/go/pkg/mod/github.com/smartcontractkit/libocr@v0.0.0-20221121171434-482da3ed36d8/subprocesses/subprocesses.go:29"}
+	verifier.SetConfig(ocrConfig)
+	latestConfigDetails2, err := verifier.LatestConfigDetails()
+	_ = latestConfigDetails2
 
 	log.Info().Msg("done")
 }
@@ -127,7 +134,7 @@ func setupMercuryEnvironment(t *testing.T) (testEnvironment *environment.Environ
 				testNetwork),
 			"secretsToml": `
 				[[Mercury.Credentials]]
-				URL = "http://host.docker.internal:3000/reports"
+				URL = "http://mercury-server:3000/reports"
 				Username = "node"
 				Password = "nodepass"
 			`,
@@ -183,8 +190,9 @@ func CreateMercuryJobs(
 		}
 
 		autoOCR2JobSpec := client.OCR2TaskJobSpec{
-			Name:    "ocr2",
-			JobType: "offchainreporting2",
+			Name:            "ocr2",
+			JobType:         "offchainreporting2",
+			MaxTaskDuration: "1s",
 			OCR2OracleSpec: job.OCR2OracleSpec{
 				PluginType: "median",
 				PluginConfig: map[string]interface{}{
@@ -201,7 +209,7 @@ func CreateMercuryJobs(
 				RelayConfigMercuryConfig: map[string]interface{}{
 					// "feedID": string(feedID[:]), // TODO: fix transformation
 					"feedID": "0x4554482d5553442d4f7074696d69736d2d476f65726c692d3100000000000000",
-					"url":    "http://host.docker.internal:11111/reports", //TODO: use mercury server IP
+					"url":    "http://mercury-server:3000/reports", //TODO: use mercury server IP
 				},
 				ContractConfigTrackerPollInterval: *models.NewInterval(time.Second * 15),
 				ContractID:                        contractID,                                        // registryAddr

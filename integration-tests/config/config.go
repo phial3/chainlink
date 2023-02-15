@@ -56,5 +56,5 @@ Enabled = true
 [P2P]
 [P2P.V2]
 Enabled = true
-ListenAddresses = ['0.0.0.0:6699']`
+ListenAddresses = ['0.0.0.0:6690']`
 )
