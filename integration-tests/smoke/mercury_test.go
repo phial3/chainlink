@@ -105,6 +105,16 @@ func TestMercury(t *testing.T) {
 	latestConfigDetails2, err := verifier.LatestConfigDetails()
 	_ = latestConfigDetails2
 
+	// Wait for the DON to start generating reports
+	time.Sleep(120 * time.Second)
+
+	// Get a report from mercury server
+	msUrl := testEnvironment.URLs[mercury_server.URLsKey][1]
+	ms := client.NewMercuryServer(msUrl)
+	report, _, err := ms.GetReports("ETH-USD-Optimism-Goerli-1", "5554794")
+	require.NoError(t, err, "Error getting report from Mercury Server")
+	require.NotEmpty(t, report.ChainlinkBlob, "Report response does not contain chainlinkBlob")
+
 	log.Info().Msg("done")
 }
 
