@@ -1046,6 +1046,13 @@ func (c *coordinator) SetOffChainConfig(b []byte) error {
 	}
 
 	c.blockhashLookback = mathutil.Min(256, uint64(c.coordinatorConfig.LookbackBlocks))
+  
+	// Update local caches with new eviction window.
+	cacheEvictionWindowSeconds := c.coordinatorConfig.CacheEvictionWindowSeconds
+	cacheEvictionWindow := time.Duration(cacheEvictionWindowSeconds * int64(time.Second))
+	c.toBeTransmittedBlocks.SetEvictonWindow(cacheEvictionWindow)
+	c.toBeTransmittedCallbacks.SetEvictonWindow(cacheEvictionWindow)
+
 	c.lggr.Infow("set offchain config",
 		offchainConfigFields(c.coordinatorConfig)...,
 	)
